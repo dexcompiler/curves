@@ -1,0 +1,4 @@
+﻿.idea/
+**/bin/
+**/obj/
+Curves.sln.DotSettings.user
