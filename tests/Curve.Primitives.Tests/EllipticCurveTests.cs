@@ -1,4 +1,5 @@
-﻿namespace Curve.Primitives.Tests;
+﻿// ReSharper disable ConvertToConstant.Local
+namespace Curve.Primitives.Tests;
 
 using ECP = Point<EllipticCurve>;
 
@@ -35,6 +36,34 @@ public class EllipticCurveTests
         var curve = CreateTestCurve();
         Assert.False(curve.IsOnCurve(InvalidPoint));
     }
+    
+    [Fact]
+    public void Add_AssociativityProperty()
+    {
+        var curve = CreateTestCurve();
+        var p1 = ValidPoint;
+        var p2 = ExpectedDouble;
+        var p3 = ExpectedSum;
+    
+        // (P1 + P2) + P3 should equal P1 + (P2 + P3)
+        var left = EllipticCurve.Add(curve, EllipticCurve.Add(curve, p1, p2), p3);
+        var right = EllipticCurve.Add(curve, p1, EllipticCurve.Add(curve, p2, p3));
+        Assert.Equal(left, right);
+    }
+
+    [Fact]
+    public void Add_CommutativityProperty()
+    {
+        var curve = CreateTestCurve();
+        // Use ValidPoint and its double as two known valid points
+        var p1 = ValidPoint;  // (3,6)
+        var p2 = new ECP(12, 2);  // Using the known double point
+    
+        var sum1 = EllipticCurve.Add(curve, p1, p2);
+        var sum2 = EllipticCurve.Add(curve, p2, p1);
+        Assert.Equal(sum1, sum2);
+    }
+
 
     [Fact]
     public void Add_WithIdentityPoint_ReturnsOtherPoint()
@@ -85,6 +114,54 @@ public class EllipticCurveTests
         var inverseResult = EllipticCurve.Add(curve, ValidPoint, PointInverse);
         Assert.True(curve.IsOnCurve(inverseResult));
     }
+    
+    [Fact]
+    public void Add_DoubleNegativePoint_EqualsDoublePoint()
+    {
+        var curve = CreateTestCurve();
+        var point = ValidPoint;
+        var negPoint = EllipticCurve.Negate(curve, point);
+    
+        var doubleNeg = EllipticCurve.Add(curve, negPoint, negPoint);
+        var doublePos = EllipticCurve.Add(curve, point, point);
+        Assert.Equal(doubleNeg, EllipticCurve.Negate(curve, doublePos));
+    }
+
+    [Fact]
+    public void ScalarMultiply_OrderMinusOne_EqualsNegativeBasePoint()
+    {
+        var curve = CreateTestCurve();
+        var result = EllipticCurve.ScalarMultiply(curve, ValidPoint, curve.GetOrder() - 1);
+        Assert.Equal(EllipticCurve.Negate(curve, ValidPoint), result);
+    }
+
+    
+    [Fact]
+    public void ScalarMultiply_WithOrder_ReturnsIdentity()
+    {
+        var curve = CreateTestCurve();
+        var result = EllipticCurve.ScalarMultiply(curve, ValidPoint, 19);
+        Assert.Equal(ECP.Identity, result);
+    }
+
+    [Fact]
+    public void ScalarMultiply_CyclicProperty_ReturnsExpectedPoints()
+    {
+        var curve = CreateTestCurve();
+        var points = new List<ECP>();
+    
+        // Collect all points in the cyclic subgroup, up to order-1
+        for (var i = 1; i < curve.GetOrder(); i++)
+        {
+            var point = EllipticCurve.ScalarMultiply(curve, ValidPoint, i);
+            Assert.True(curve.IsOnCurve(point)); // Verify each point is valid
+            points.Add(point);
+        }
+    
+        // Verify next point cycles back (kP where k = order should give Identity)
+        var cyclePoint = EllipticCurve.ScalarMultiply(curve, ValidPoint, curve.GetOrder());
+        Assert.Equal(ECP.Identity, cyclePoint);
+    }
 
     [Fact]
     public void ScalarMultiply_WithValidParameters_ReturnsCorrectPoint()
@@ -115,5 +192,56 @@ public class EllipticCurveTests
         var curve = CreateTestCurve();
         var result = EllipticCurve.ScalarMultiply(curve, ValidPoint, -1);
         Assert.Equal(PointInverse, result);
+    }
+    
+    [Fact]
+    public void ScalarMultiply_DistributiveProperty()
+    {
+        var curve = CreateTestCurve();
+        // Use smaller numbers to avoid going over the order
+        var k1 = 2;
+        var k2 = 3;
+        var point = ValidPoint;
+    
+        // (k1 + k2)P should equal k1P + k2P
+        var left = EllipticCurve.ScalarMultiply(curve, point, k1 + k2);
+        var right = EllipticCurve.Add(curve,
+            EllipticCurve.ScalarMultiply(curve, point, k1),
+            EllipticCurve.ScalarMultiply(curve, point, k2));
+    
+        Assert.True(curve.IsOnCurve(left));
+        Assert.True(curve.IsOnCurve(right));
+        Assert.Equal(left, right);
+    }
+
+
+    [Fact]
+    public void ScalarMultiply_NegativeScalarEqualsNegativePoint()
+    {
+        var curve = CreateTestCurve();
+        var k = 5;
+        var point = ValidPoint;
+    
+        // (-k)P should equal -(kP)
+        var negativeScalar = EllipticCurve.ScalarMultiply(curve, point, -k);
+        var negativePoint = EllipticCurve.Negate(curve, EllipticCurve.ScalarMultiply(curve, point, k));
+        Assert.Equal(negativeScalar, negativePoint);
+    }
+    
+    [Fact]
+    public void IsOnCurve_IdentityPoint_ReturnsTrue()
+    {
+        var curve = CreateTestCurve();
+        Assert.True(curve.IsOnCurve(ECP.Identity));
+    }
+
+    [Theory]
+    [InlineData(int.MaxValue)]
+    [InlineData(int.MinValue)]
+    public void ScalarMultiply_WithLargeScalars_ResultStillOnCurve(int k)
+    {
+        var curve = CreateTestCurve();
+        var result = EllipticCurve.ScalarMultiply(curve, ValidPoint, k);
+        Assert.True(curve.IsOnCurve(result));
     }
 }
