@@ -186,6 +186,8 @@ public readonly record struct EllipticCurve : IEllipticCurve<EllipticCurve>
 
     private static BigInteger GetModularInverse(BigInteger a, BigInteger m)
     {
+        a = ((a % m) + m) % m;
+
         var (g, x, _) = ComputeGcd(a, m);
         if (g != 1) throw new ArithmeticException($"Modular inverse of {a} does not exist for the given modulus {m}.");
         return (x % m + m) % m;
