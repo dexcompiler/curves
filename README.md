@@ -1,4 +1,4 @@
-# Basic Elliptic Curve Implementation
+# Elliptic Curve Implementation
 
 A C# implementation of elliptic curve arithmetic operations over finite fields, primarily focused on the mathematical fundamentals that underpin elliptic curve cryptography (ECC).
 
