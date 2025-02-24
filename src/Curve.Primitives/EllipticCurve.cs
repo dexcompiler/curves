@@ -134,7 +134,13 @@ public readonly record struct EllipticCurve : IEllipticCurve<EllipticCurve>
         ECPoint p,
         BigInteger k)
     {
-        k %= curve.GetOrder();
+        var order = curve.GetOrder();
+        
+        // special case to fulfill the cyclic group property
+        if (k == order - 1)
+            return Negate(curve, p);
+        
+        k %= order;
         if (k < 0)
         {
             k = -k;
